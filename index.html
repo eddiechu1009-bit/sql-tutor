@@ -91,6 +91,7 @@
   .drawer.open { transform: none; }
   .drawer-mask.open { display: block; }
   .drawer h3 { margin: 4px 0 10px; font-size: 16px; }
+  .sec { font-size: 13px; color: var(--muted); font-weight: 600; margin: 14px 0 4px; }
   .lesson-item { display: flex; align-items: center; gap: 10px; padding: 10px 8px; border-radius: 8px; cursor: pointer; }
   .lesson-item.active { background: var(--primary-soft); }
   .lesson-item .dot { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--line); flex: 0 0 auto; display: grid; place-items: center; font-size: 12px; }
@@ -122,7 +123,7 @@
 <aside class="drawer" id="drawerSchema">
   <h3>練習用資料表</h3>
   <div id="schemaBox"></div>
-  <div class="meta">資料是虛構的小型電商：顧客、商品、訂單。</div>
+  <div class="meta">資料都是虛構的。基礎篇：小型電商（顧客、商品、訂單）；進階篇：賣家週業績。</div>
   <h3 style="margin-top:20px">小抄：句子的順序</h3>
   <pre class="example" style="pointer-events:none">SELECT   要哪些欄
 FROM     哪張表
@@ -171,12 +172,72 @@ INSERT INTO orders VALUES
  (7,4,6,4,'2024-10-11'),(8,5,4,1,'2024-10-12'),(9,5,10,1,'2024-10-15'),
  (10,6,2,2,'2024-10-18'),(11,1,3,1,'2024-10-20'),(12,8,9,2,'2024-10-22'),
  (13,3,5,1,'2024-10-25'),(14,5,8,1,'2024-10-28');
+
+CREATE TABLE sellers (seller_id INTEGER PRIMARY KEY, seller_name TEXT, category TEXT, owner TEXT);
+INSERT INTO sellers VALUES
+ (1,'森林家居','居家','Amy'),(2,'極光電子','3C','Ben'),(3,'山行戶外','運動','Amy'),
+ (4,'晨光母嬰','母嬰',NULL),(5,'海風文具','文具','Ben'),(6,'雲朵寵物','寵物',NULL);
+
+CREATE TABLE weekly_sales (seller_id INTEGER, marketplace TEXT, week TEXT, gms INTEGER, units INTEGER);
+INSERT INTO weekly_sales VALUES
+ (1,'UK','2026-08-31',970,32),
+ (1,'UK','2026-09-07',1010,40),
+ (1,'UK','2026-09-14',820,33),
+ (1,'UK','2026-09-21',990,40),
+ (1,'UK','2026-09-28',1300,43),
+ (1,'DE','2026-08-31',620,16),
+ (1,'DE','2026-09-07',780,26),
+ (1,'DE','2026-09-14',640,16),
+ (1,'DE','2026-09-21',630,25),
+ (1,'DE','2026-09-28',1020,41),
+ (2,'UK','2026-08-31',3470,87),
+ (2,'UK','2026-09-07',2530,84),
+ (2,'UK','2026-09-14',2520,84),
+ (2,'UK','2026-09-21',2960,99),
+ (2,'UK','2026-09-28',3400,97),
+ (2,'DE','2026-08-31',2650,88),
+ (2,'DE','2026-09-07',2020,67),
+ (2,'DE','2026-09-14',2390,96),
+ (2,'DE','2026-09-21',2650,88),
+ (2,'DE','2026-09-28',2560,64),
+ (2,'FR','2026-08-31',2060,52),
+ (2,'FR','2026-09-07',1880,47),
+ (2,'FR','2026-09-14',1660,55),
+ (2,'FR','2026-09-21',2080,69),
+ (2,'FR','2026-09-28',1390,40),
+ (3,'DE','2026-08-31',1250,36),
+ (3,'DE','2026-09-07',1380,39),
+ (3,'DE','2026-09-14',1300,52),
+ (3,'DE','2026-09-21',980,24),
+ (3,'DE','2026-09-28',1010,29),
+ (4,'UK','2026-08-31',650,16),
+ (4,'UK','2026-09-07',770,31),
+ (4,'UK','2026-09-14',910,26),
+ (4,'UK','2026-09-21',730,21),
+ (4,'UK','2026-09-28',840,21),
+ (5,'FR','2026-08-31',220,9),
+ (5,'FR','2026-09-07',360,9),
+ (5,'FR','2026-09-14',320,13),
+ (5,'FR','2026-09-21',220,6),
+ (5,'FR','2026-09-28',310,8),
+ (5,'DE','2026-08-31',360,9),
+ (5,'DE','2026-09-07',500,14),
+ (5,'DE','2026-09-14',300,8),
+ (5,'DE','2026-09-21',380,15),
+ (5,'DE','2026-09-28',410,14),
+ (6,'UK','2026-08-31',460,15),
+ (6,'UK','2026-09-07',450,11),
+ (6,'UK','2026-09-14',380,10),
+ (6,'UK','2026-09-21',310,8),
+ (6,'UK','2026-09-28',NULL,NULL);
 `;
 
 const SCHEMA = [
   ['customers', '顧客', ['id 編號', 'name 姓名', 'city 城市', 'country 國家', 'joined 加入日期']],
   ['products', '商品', ['id 編號', 'name 品名', 'category 類別', 'price 價格', 'stock 庫存']],
   ['orders', '訂單', ['id 編號', 'customer_id → customers.id', 'product_id → products.id', 'qty 數量', 'order_date 下單日']],
+  ['sellers', '賣家（進階篇）', ['seller_id 賣家編號', 'seller_name 賣家名', 'category 品類', 'owner 負責 BD（可能是空的）']],
+  ['weekly_sales', '賣家週業績（進階篇）', ['seller_id → sellers.seller_id', 'marketplace 站別 UK/DE/FR', 'week 週起始日（週一）', 'gms 業績', 'units 件數']],
 ];
 
 // ---------- 課程 ----------
@@ -337,8 +398,107 @@ const LESSONS = [
     answer: 'UPDATE products SET stock = 50 WHERE stock = 0;',
     verify: 'SELECT id, stock FROM products ORDER BY id;',
   },
+  // ===== 進階篇：賣家週報情境 =====
+  {
+    section: '進階',
+    title: 'COUNT(DISTINCT)：不重複計數',
+    plain: '就像 Excel 先「移除重複」再數有幾個。',
+    body: `<p>進階篇改用賣家週報的資料：<code>sellers</code>（賣家）和 <code>weekly_sales</code>（每個賣家、每個站別、每週一列）。右上「資料表」可以看欄位。</p>
+<p>同一個賣家會出現在很多週、很多站，所以 <code>COUNT(*)</code> 數的是「列數」，不是「賣家數」。要數賣家數就用 <code>COUNT(DISTINCT seller_id)</code>。</p>`,
+    examples: ['SELECT COUNT(*) AS 列數, COUNT(DISTINCT seller_id) AS 賣家數\nFROM weekly_sales;'],
+    task: '算出每個站別（marketplace）各有幾個「不重複」的賣家，列出站別與賣家數。',
+    hint: 'SELECT marketplace, COUNT(DISTINCT seller_id) FROM weekly_sales GROUP BY marketplace;',
+    answer: 'SELECT marketplace, COUNT(DISTINCT seller_id) FROM weekly_sales GROUP BY marketplace;',
+  },
+  {
+    section: '進階',
+    title: 'NULL 陷阱與 COALESCE',
+    plain: 'NULL 不是 0，是「沒有資料」；COALESCE 就像 Excel 的 IFERROR，空的就用替代值。',
+    body: `<p>NULL 有幾個常見陷阱：</p>
+<p>① <code>COUNT(*)</code> 會數到 NULL 那列，<code>COUNT(gms)</code> 不會。② <code>SUM</code>、<code>AVG</code> 會直接跳過 NULL。③ 任何數字和 NULL 相加減，結果都是 NULL。</p>
+<p><code>COALESCE(owner, '未分配')</code>：owner 是空的就顯示「未分配」。</p>
+<p>⚠ 報告上「沒有資料」和「值為 0」意思不同，不要隨手把 NULL 補成 0。</p>`,
+    examples: ['SELECT COUNT(*) AS 列數, COUNT(gms) AS 有業績的列數\nFROM weekly_sales;', 'SELECT * FROM weekly_sales WHERE gms IS NULL;'],
+    task: '列出所有賣家的 <code>seller_name</code> 和負責人；沒有負責人（owner 是空的）就顯示「未分配」。',
+    hint: "SELECT seller_name, COALESCE(owner, '未分配') FROM sellers;",
+    answer: "SELECT seller_name, COALESCE(owner, '未分配') FROM sellers;",
+  },
+  {
+    section: '進階',
+    title: '日期函數：按月、按週切',
+    plain: '就像 Excel 的 TEXT(日期,"yyyy-mm") 和「日期 + 7」。',
+    body: `<p>這裡的日期是文字格式 <code>'2026-09-28'</code>，可以直接用大於、小於、BETWEEN 比大小。</p>
+<p><code>strftime('%Y-%m', week)</code>：取出「年-月」，拿來按月分組。</p>
+<p><code>date(week, '-7 days')</code>：往前推 7 天，也就是上一週。</p>
+<p>📌 Andes（Redshift）的寫法不同，觀念一樣：<code>DATE_TRUNC('month', d)</code>、<code>DATEADD(day, -7, d)</code>、<code>TO_CHAR(d, 'YYYY-MM')</code>。</p>`,
+    examples: ["SELECT DISTINCT week, strftime('%Y-%m', week) AS 月份, date(week, '-7 days') AS 上週\nFROM weekly_sales;"],
+    task: "統計每個月份的 GMS 總額：列出月份（<code>strftime('%Y-%m', week)</code>）和 <code>SUM(gms)</code>。",
+    hint: "SELECT strftime('%Y-%m', week) AS m, SUM(gms) FROM weekly_sales GROUP BY m;",
+    answer: "SELECT strftime('%Y-%m', week) AS m, SUM(gms) FROM weekly_sales GROUP BY m;",
+  },
+  {
+    section: '進階',
+    title: '大表習慣：先篩日期，只拿要的欄',
+    plain: '就像打開一份超大的 Excel 前，先只匯入需要的月份和欄位。',
+    body: `<p>Andes 的表動輒上億列，而且通常按日期切成很多塊（partition）。WHERE 條件裡有日期，系統就只讀那幾塊；沒寫的話會整張表掃過一遍，跑很久甚至直接失敗。</p>
+<p>三個好習慣：① <b>WHERE 一定先篩日期（分區欄位）</b> ② 少用 <code>SELECT *</code>，只列需要的欄 ③ 第一次試跑先加 <code>LIMIT 100</code>。</p>`,
+    examples: ["SELECT seller_id, marketplace, gms\nFROM weekly_sales\nWHERE week = '2026-09-28'\nLIMIT 100;"],
+    task: '只看 <code>2026-09-28</code> 這一週，算出各站別（marketplace）的 GMS 加總。',
+    hint: "WHERE week = '2026-09-28' GROUP BY marketplace",
+    answer: "SELECT marketplace, SUM(gms) FROM weekly_sales WHERE week = '2026-09-28' GROUP BY marketplace;",
+  },
+  {
+    section: '進階',
+    title: 'WITH（CTE）：把長查詢拆成段',
+    plain: '就像 Excel 先做一張「中間計算表」，再拿它來做最後的報表。',
+    body: `<p><code>WITH 名字 AS (查詢)</code> 會先算出一張暫時的表，後面的 SELECT 可以把它當一般的表來用。</p>
+<p>長的 SQL 用 CTE 一段一段拆開，比較好讀，也比較好除錯：可以先單獨跑每一段，確認結果對了再往下接。</p>`,
+    examples: ["WITH sep AS (\n  SELECT seller_id, SUM(gms) AS gms\n  FROM weekly_sales\n  WHERE week >= '2026-09-01'\n  GROUP BY seller_id\n)\nSELECT * FROM sep ORDER BY gms DESC;"],
+    task: "用 WITH 先算出每個賣家「9 月」（week ≥ '2026-09-01'）的 GMS 總額，再 JOIN sellers，列出總額超過 5000 的 <code>seller_name</code> 和總額。",
+    hint: 'WITH sep AS (...) SELECT s.seller_name, sep.gms FROM sep JOIN sellers s ON s.seller_id = sep.seller_id WHERE sep.gms > 5000;',
+    answer: "WITH sep AS (\n  SELECT seller_id, SUM(gms) AS gms FROM weekly_sales\n  WHERE week >= '2026-09-01' GROUP BY seller_id\n)\nSELECT s.seller_name, sep.gms FROM sep\nJOIN sellers s ON s.seller_id = sep.seller_id\nWHERE sep.gms > 5000;",
+  },
+  {
+    section: '進階',
+    title: 'ROW_NUMBER()：每組取第一名',
+    plain: '就像在每個站別裡各自排名次，再只留第 1 名。',
+    body: `<p>視窗函數會在「不合併列」的情況下，幫每一列算出排名或累計值。</p>
+<p><code>ROW_NUMBER() OVER (PARTITION BY marketplace ORDER BY gms DESC)</code>：在每個站別內依 GMS 從高到低編號 1、2、3…</p>
+<p>WHERE 裡不能直接篩視窗函數的結果，所以要先用 CTE 算好排名，外層再 <code>WHERE rn = 1</code>。</p>`,
+    examples: ["SELECT marketplace, seller_id, gms,\n  ROW_NUMBER() OVER (PARTITION BY marketplace ORDER BY gms DESC) AS rn\nFROM weekly_sales\nWHERE week = '2026-09-28';"],
+    task: '找出 <code>2026-09-28</code> 這週，每個站別 GMS 第一名的賣家：列出 <code>marketplace</code>、<code>seller_id</code>、<code>gms</code>。',
+    hint: 'WITH r AS (上面範例) SELECT marketplace, seller_id, gms FROM r WHERE rn = 1;',
+    answer: "WITH r AS (\n  SELECT marketplace, seller_id, gms,\n    ROW_NUMBER() OVER (PARTITION BY marketplace ORDER BY gms DESC) AS rn\n  FROM weekly_sales WHERE week = '2026-09-28'\n)\nSELECT marketplace, seller_id, gms FROM r WHERE rn = 1;",
+  },
+  {
+    section: '進階',
+    title: 'LAG()：抓上一期，算 WoW',
+    plain: '就像 Excel 裡用「這格減上一格」算週變化。',
+    body: `<p><code>LAG(gms) OVER (ORDER BY week)</code> 會拿到「依週排序後的上一列」的 gms。第一週沒有上一週，所以會是 NULL。</p>
+<p>如果要每個賣家、每個站別各自算，就加上 <code>PARTITION BY seller_id, marketplace</code>。</p>`,
+    examples: ['SELECT seller_id, marketplace, week, gms,\n  LAG(gms) OVER (PARTITION BY seller_id, marketplace ORDER BY week) AS 上週\nFROM weekly_sales;'],
+    task: '列出賣家 2 在 UK 每一週的 <code>week</code>、<code>gms</code>，以及和上週相比的差額（gms − 上週 gms），依週排序。',
+    hint: "WHERE seller_id = 2 AND marketplace = 'UK'，差額 = gms - LAG(gms) OVER (ORDER BY week)",
+    answer: "SELECT week, gms, gms - LAG(gms) OVER (ORDER BY week) AS diff\nFROM weekly_sales\nWHERE seller_id = 2 AND marketplace = 'UK'\nORDER BY week;",
+    ordered: true,
+  },
+  {
+    section: '進階',
+    title: '綜合題：做一張週報',
+    plain: '把前面學的組起來：先加總，再抓上週，最後算成長率。',
+    body: `<p>週報常見的流程：① CTE 先把各站加總成「賣家 × 週」② 用 LAG 抓上週 ③ JOIN 賣家名稱 ④ 算 WoW%，篩出本週。</p>
+<p>⚠ <b>整數相除陷阱</b>：<code>7 / 2</code> 在很多資料庫會算出 3。算比率時先乘 <code>100.0</code>，才會得到小數。</p>
+<p>⚠ 雲朵寵物本週 gms 是 NULL，WoW% 也會是 NULL，這是對的：沒有資料就不該算出一個數字。</p>`,
+    examples: ['SELECT 7 / 2 AS 整數除, 7 * 1.0 / 2 AS 小數除;'],
+    task: '做出 <code>2026-09-28</code> 這週的週報：每個賣家（各站合計）的 <code>seller_name</code>、本週 GMS、上週 GMS、WoW%（<code>ROUND((本週 − 上週) * 100.0 / 上週, 1)</code>），依本週 GMS 由高到低排序。',
+    hint: "WITH w AS (SELECT seller_id, week, SUM(gms) AS gms FROM weekly_sales GROUP BY seller_id, week), l AS (SELECT *, LAG(gms) OVER (PARTITION BY seller_id ORDER BY week) AS prev FROM w) SELECT ... FROM l JOIN sellers ... WHERE week = '2026-09-28' ORDER BY gms DESC;",
+    answer: "WITH w AS (\n  SELECT seller_id, week, SUM(gms) AS gms\n  FROM weekly_sales GROUP BY seller_id, week\n),\nl AS (\n  SELECT *, LAG(gms) OVER (PARTITION BY seller_id ORDER BY week) AS prev FROM w\n)\nSELECT s.seller_name, l.gms, l.prev,\n  ROUND((l.gms - l.prev) * 100.0 / l.prev, 1) AS wow_pct\nFROM l JOIN sellers s ON s.seller_id = l.seller_id\nWHERE l.week = '2026-09-28'\nORDER BY l.gms DESC;",
+    ordered: true,
+  },
 ];
 
+const ADV_KEYWORDS = ['WITH', 'AS ()', 'DISTINCT', 'COALESCE()', "strftime('%Y-%m', week)", 'OVER ()', 'PARTITION BY',
+  'ROW_NUMBER()', 'LAG()', 'ROUND()', '100.0', 'sellers', 'weekly_sales'];
 const KEYWORDS = ['SELECT', '*', 'FROM', 'WHERE', ',', "''", '=', '>', '<', 'AND', 'OR', 'IN ()', 'LIKE', '%',
   'ORDER BY', 'DESC', 'LIMIT', 'COUNT(*)', 'SUM()', 'AVG()', 'GROUP BY', 'HAVING', 'AS', 'JOIN', 'LEFT JOIN', 'ON',
   'IS NULL', 'CASE WHEN', 'THEN', 'ELSE', 'END', ';', 'customers', 'products', 'orders'];
@@ -352,6 +512,10 @@ const drafts = JSON.parse(localStorage.getItem('sqlTutor.drafts') || '{}');
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
+function label(i) {
+  if (LESSONS[i].section === '進階') return `進階 ${i - LESSONS.findIndex((x) => x.section === '進階') + 1}`;
+  return `基礎 ${i}`;
+}
 function freshDb() { const d = new SQL.Database(); d.run(SEED_SQL); return d; }
 function lastResult(d, sql) {
   const res = d.exec(sql);
@@ -366,11 +530,11 @@ function save() {
 // ---------- 畫面 ----------
 function render() {
   const L = LESSONS[current];
-  $('#title').textContent = `${current + 1}. ${L.title}`;
+  $('#title').textContent = `${label(current)}｜${L.title}`;
   $('#progressBar').style.width = `${(done.size / LESSONS.length) * 100}%`;
   $('#app').innerHTML = `
     <section class="card">
-      <span class="tag">第 ${current + 1} / ${LESSONS.length} 課</span>
+      <span class="tag">${label(current)}　·　全部 ${LESSONS.length} 課</span>
       <h2>${L.title}</h2>
       <p class="plain">💬 白話：${L.plain}</p>
       ${L.body}
@@ -383,7 +547,7 @@ function render() {
     <section class="card">
       <textarea id="editor" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off"
         placeholder="在這裡寫 SQL…">${esc(drafts[current] ?? '')}</textarea>
-      <div class="chips" id="chips">${KEYWORDS.map((k) => `<button data-k="${esc(k)}">${esc(k)}</button>`).join('')}</div>
+      <div class="chips" id="chips">${(L.section === '進階' ? [...ADV_KEYWORDS, ...KEYWORDS] : KEYWORDS).map((k) => `<button data-k="${esc(k)}">${esc(k)}</button>`).join('')}</div>
       <div class="actions">
         <button class="btn-run" id="btnRun">▶ 執行</button>
         <button class="btn-check" id="btnCheck">✓ 檢查答案</button>
@@ -406,8 +570,9 @@ function render() {
 
 function renderMenu() {
   $('#lessonList').innerHTML = LESSONS.map((L, i) => `
+    ${i === 0 ? '<div class="sec">基礎篇</div>' : ''}${L.section === '進階' && LESSONS[i - 1].section !== '進階' ? '<div class="sec">進階篇・賣家週報</div>' : ''}
     <div class="lesson-item ${i === current ? 'active' : ''} ${done.has(i) ? 'done' : ''}" data-i="${i}">
-      <span class="dot">${done.has(i) ? '✓' : i + 1}</span><span>${L.title}</span>
+      <span class="dot">${done.has(i) ? '✓' : label(i).split(' ')[1]}</span><span>${L.title}</span>
     </div>`).join('');
 }
 
@@ -480,7 +645,7 @@ function check() {
     return showFeedback('bad', '內容對了，但順序不對。檢查 ORDER BY。');
   }
   done.add(current); save();
-  showFeedback('ok', current === LESSONS.length - 1 ? '🎉 正確！全部課程完成了！' : '🎉 正確！可以前往下一課。');
+  showFeedback('ok', current === LESSONS.length - 1 ? '🎉 正確！進階篇也全部完成了！' : (LESSONS[current + 1].section === '進階' && L.section !== '進階' ? '🎉 正確！基礎篇完成，下一課開始進階篇。' : '🎉 正確！可以前往下一課。'));
   $('#progressBar').style.width = `${(done.size / LESSONS.length) * 100}%`;
   renderMenu();
 }
