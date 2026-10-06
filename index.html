@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#2563eb">
+<title>口袋 SQL 教室</title>
+<style>
+  :root {
+    --bg: #f5f7fb; --card: #fff; --text: #1f2937; --muted: #6b7280;
+    --line: #e5e7eb; --primary: #2563eb; --primary-soft: #dbeafe;
+    --ok: #15803d; --ok-soft: #dcfce7; --bad: #b91c1c; --bad-soft: #fee2e2;
+    --code-bg: #0f172a; --code-text: #e2e8f0;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0b1120; --card: #111827; --text: #e5e7eb; --muted: #9ca3af;
+      --line: #1f2937; --primary: #60a5fa; --primary-soft: #1e3a5f;
+      --ok: #4ade80; --ok-soft: #14321f; --bad: #f87171; --bad-soft: #3b1515;
+      --code-bg: #020617;
+    }
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: -apple-system, "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+    font-size: 16px; line-height: 1.65;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  header {
+    position: sticky; top: 0; z-index: 10; background: var(--primary); color: #fff;
+    padding: calc(10px + env(safe-area-inset-top)) 14px 10px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  header h1 { font-size: 17px; margin: 0; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  header button { background: rgba(255,255,255,.18); color: #fff; border: 0; border-radius: 8px; padding: 6px 10px; font-size: 15px; }
+  .progress { height: 4px; background: rgba(255,255,255,.25); position: absolute; left: 0; right: 0; bottom: 0; }
+  .progress i { display: block; height: 100%; background: #fde047; width: 0; transition: width .3s; }
+  main { max-width: 720px; margin: 0 auto; padding: 12px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; margin-bottom: 12px; }
+  .card h2 { font-size: 16px; margin: 0 0 6px; }
+  .card p { margin: 6px 0; }
+  .tag { display: inline-block; font-size: 12px; color: var(--primary); background: var(--primary-soft); border-radius: 99px; padding: 1px 9px; margin-bottom: 4px; }
+  code { font-family: ui-monospace, Menlo, Consolas, monospace; background: var(--primary-soft); padding: 1px 5px; border-radius: 5px; font-size: 14px; }
+  pre.example {
+    background: var(--code-bg); color: var(--code-text); border-radius: 10px; padding: 10px 12px;
+    font: 14px/1.5 ui-monospace, Menlo, Consolas, monospace; white-space: pre-wrap; margin: 8px 0; position: relative;
+  }
+  aside pre.example::after { content: none; }
+  pre.example::after { content: "點一下放進編輯器"; position: absolute; right: 8px; bottom: 4px; font-size: 11px; color: #64748b; font-family: sans-serif; }
+  .plain { background: #fef9c3; color: #713f12; border-radius: 8px; padding: 8px 10px; font-weight: 600; }
+  @media (prefers-color-scheme: dark) { .plain { background: #3a3108; color: #fde68a; } }
+  .challenge { border-left: 4px solid #f59e0b; }
+  textarea {
+    width: 100%; min-height: 110px; resize: vertical; border: 1px solid var(--line); border-radius: 10px;
+    background: var(--code-bg); color: var(--code-text); padding: 10px 12px;
+    font: 15px/1.5 ui-monospace, Menlo, Consolas, monospace;
+  }
+  textarea:focus { outline: 2px solid var(--primary); }
+  .chips { display: flex; gap: 6px; overflow-x: auto; padding: 8px 0 4px; scrollbar-width: none; }
+  .chips::-webkit-scrollbar { display: none; }
+  .chips button {
+    flex: 0 0 auto; border: 1px solid var(--line); background: var(--card); color: var(--text);
+    border-radius: 8px; padding: 6px 10px; font: 13px ui-monospace, Menlo, Consolas, monospace;
+  }
+  .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+  .actions button { border: 0; border-radius: 10px; padding: 12px; font-size: 15px; font-weight: 600; }
+  .btn-run { background: var(--primary); color: #fff; }
+  .btn-check { background: #f59e0b; color: #1f2937; }
+  .btn-ghost { background: var(--primary-soft); color: var(--primary); font-weight: 500 !important; }
+  .feedback { border-radius: 10px; padding: 10px 12px; margin-top: 10px; display: none; white-space: pre-wrap; }
+  .feedback.ok { display: block; background: var(--ok-soft); color: var(--ok); }
+  .feedback.bad { display: block; background: var(--bad-soft); color: var(--bad); }
+  .feedback.info { display: block; background: var(--primary-soft); color: var(--text); }
+  .result-wrap { overflow-x: auto; margin-top: 6px; border: 1px solid var(--line); border-radius: 10px; max-height: 360px; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { padding: 6px 10px; border-bottom: 1px solid var(--line); text-align: left; white-space: nowrap; }
+  th { position: sticky; top: 0; background: var(--primary-soft); font-weight: 600; }
+  td.null { color: var(--muted); font-style: italic; }
+  .meta { color: var(--muted); font-size: 13px; margin-top: 4px; }
+  .nav { display: flex; gap: 8px; }
+  .nav button { flex: 1; border: 1px solid var(--line); background: var(--card); color: var(--text); border-radius: 10px; padding: 12px; font-size: 15px; }
+  .nav button:disabled { opacity: .4; }
+  /* 側邊抽屜 */
+  .drawer-mask { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 20; display: none; }
+  .drawer {
+    position: fixed; top: 0; bottom: 0; right: 0; width: min(86vw, 380px); background: var(--card); z-index: 21;
+    transform: translateX(100%); transition: transform .25s; overflow-y: auto;
+    padding: calc(14px + env(safe-area-inset-top)) 16px calc(14px + env(safe-area-inset-bottom));
+  }
+  .drawer.open { transform: none; }
+  .drawer-mask.open { display: block; }
+  .drawer h3 { margin: 4px 0 10px; font-size: 16px; }
+  .lesson-item { display: flex; align-items: center; gap: 10px; padding: 10px 8px; border-radius: 8px; cursor: pointer; }
+  .lesson-item.active { background: var(--primary-soft); }
+  .lesson-item .dot { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--line); flex: 0 0 auto; display: grid; place-items: center; font-size: 12px; }
+  .lesson-item.done .dot { background: var(--ok); border-color: var(--ok); color: #fff; }
+  .schema-table { margin-bottom: 12px; font-size: 14px; }
+  .schema-table b { color: var(--primary); }
+  .schema-table div { color: var(--muted); padding-left: 10px; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px; }
+  .loading { text-align: center; padding: 40px 0; color: var(--muted); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1 id="title">口袋 SQL 教室</h1>
+  <button id="btnSchema">資料表／小抄</button>
+  <button id="btnMenu">課程</button>
+  <div class="progress"><i id="progressBar"></i></div>
+</header>
+
+<main id="app"><div class="loading">載入 SQL 引擎中…</div></main>
+
+<div class="drawer-mask" id="mask"></div>
+<aside class="drawer" id="drawerMenu">
+  <h3>課程列表</h3>
+  <div id="lessonList"></div>
+  <div class="meta" style="margin-top:16px">進度存在這台手機的瀏覽器裡。</div>
+  <button class="btn-ghost" style="margin-top:8px;border:0;border-radius:8px;padding:8px 12px" id="btnResetProgress">清除進度</button>
+</aside>
+<aside class="drawer" id="drawerSchema">
+  <h3>練習用資料表</h3>
+  <div id="schemaBox"></div>
+  <div class="meta">資料是虛構的小型電商：顧客、商品、訂單。</div>
+  <h3 style="margin-top:20px">小抄：句子的順序</h3>
+  <pre class="example" style="pointer-events:none">SELECT   要哪些欄
+FROM     哪張表
+JOIN     接另一張表 ON 對應欄
+WHERE    篩選列
+GROUP BY 分組
+HAVING   篩選分組結果
+ORDER BY 排序
+LIMIT    取前幾列</pre>
+  <div class="meta">順序不能顛倒；用不到的部分省略即可。</div>
+</aside>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-wasm.js"></script>
+<script>
+// ---------- 練習資料 ----------
+const SEED_SQL = `
+CREATE TABLE customers (id INTEGER PRIMARY KEY, name TEXT, city TEXT, country TEXT, joined TEXT);
+INSERT INTO customers VALUES
+ (1,'王小明','台北','台灣','2024-01-15'),
+ (2,'陳美玲','台中','台灣','2024-03-02'),
+ (3,'佐藤健','東京','日本','2024-02-20'),
+ (4,'鈴木花子','大阪','日本','2024-06-11'),
+ (5,'Hans Müller','柏林','德國','2024-04-05'),
+ (6,'Emma Smith','倫敦','英國','2024-07-19'),
+ (7,'Lucas Martin','巴黎','法國','2024-08-30'),
+ (8,'林志豪','高雄','台灣','2024-09-12'),
+ (9,'Anna Schmidt','慕尼黑','德國','2024-10-01');
+
+CREATE TABLE products (id INTEGER PRIMARY KEY, name TEXT, category TEXT, price INTEGER, stock INTEGER);
+INSERT INTO products VALUES
+ (1,'無線藍牙耳機','3C',1290,35),
+ (2,'行動電源','3C',690,0),
+ (3,'無線滑鼠','3C',450,80),
+ (4,'機械鍵盤','3C',2390,12),
+ (5,'保溫杯','居家',520,60),
+ (6,'香氛蠟燭','居家',380,0),
+ (7,'收納箱','居家',299,150),
+ (8,'瑜珈墊','運動',890,40),
+ (9,'運動水壺','運動',350,0),
+ (10,'跑步耳機','運動',1590,18);
+
+CREATE TABLE orders (id INTEGER PRIMARY KEY, customer_id INTEGER, product_id INTEGER, qty INTEGER, order_date TEXT);
+INSERT INTO orders VALUES
+ (1,1,1,1,'2024-10-01'),(2,1,5,2,'2024-10-03'),(3,2,8,1,'2024-10-05'),
+ (4,3,4,1,'2024-10-06'),(5,3,1,2,'2024-10-08'),(6,3,7,3,'2024-10-10'),
+ (7,4,6,4,'2024-10-11'),(8,5,4,1,'2024-10-12'),(9,5,10,1,'2024-10-15'),
+ (10,6,2,2,'2024-10-18'),(11,1,3,1,'2024-10-20'),(12,8,9,2,'2024-10-22'),
+ (13,3,5,1,'2024-10-25'),(14,5,8,1,'2024-10-28');
+`;
+
+const SCHEMA = [
+  ['customers', '顧客', ['id 編號', 'name 姓名', 'city 城市', 'country 國家', 'joined 加入日期']],
+  ['products', '商品', ['id 編號', 'name 品名', 'category 類別', 'price 價格', 'stock 庫存']],
+  ['orders', '訂單', ['id 編號', 'customer_id → customers.id', 'product_id → products.id', 'qty 數量', 'order_date 下單日']],
+];
+
+// ---------- 課程 ----------
+// ordered: 檢查時要比對列的順序；verify: 異動類題目，執行後用這句查結果來比對
+const LESSONS = [
+  {
+    title: '先搞懂：SQL 是什麼？',
+    plain: 'SQL 是用一句英文跟資料庫「下指令」，資料庫就把你要的表格交給你。',
+    body: `<p>你可以把資料庫想成<b>好幾張 Excel 工作表</b>，每張叫做一個「資料表」。這裡有三張：</p>
+<p>👤 <code>customers</code> 顧客　📦 <code>products</code> 商品　🧾 <code>orders</code> 訂單</p>
+<p>SQL 的句子讀起來就像英文：<code>SELECT name FROM customers</code> ＝「從顧客表<b>拿出</b>姓名」。</p>
+<p>📱 學習方式：讀說明 → <b>點黑色範例</b>看結果 → 自己寫挑戰題 → 按「檢查答案」。打字不方便就點下方的關鍵字按鈕。</p>`,
+    examples: ['SELECT * FROM customers;'],
+    task: '點上面的範例執行一次，接著自己打一次：<code>SELECT * FROM orders;</code>，看看訂單表長什麼樣子。',
+    hint: '直接照打：SELECT * FROM orders;',
+    answer: 'SELECT * FROM orders;',
+  },
+  {
+    title: 'SELECT：把資料拿出來',
+    plain: 'SELECT 就像在 Excel 裡「只顯示某幾欄」。',
+    body: `<p>SQL 最基本的句子是 <code>SELECT 欄位 FROM 資料表</code>。</p>
+<p><code>*</code> 代表「全部欄位」；想只看某幾欄，就用逗號列出欄名。</p>`,
+    examples: ['SELECT * FROM products;', 'SELECT name, price FROM products;'],
+    task: '列出所有顧客的 <code>name</code> 和 <code>city</code>。',
+    hint: '資料表是 customers，欄位用逗號隔開。',
+    answer: 'SELECT name, city FROM customers;',
+  },
+  {
+    title: 'WHERE：篩選條件',
+    plain: 'WHERE 就是 Excel 的「篩選」。',
+    body: `<p>加上 <code>WHERE</code> 只留下符合條件的列。</p>
+<p>比較符號：<code>=</code> <code>&lt;&gt;</code>（不等於）<code>&gt;</code> <code>&lt;</code> <code>&gt;=</code> <code>&lt;=</code>。文字要用單引號包起來，例如 <code>'台灣'</code>。</p>`,
+    examples: ['SELECT * FROM products WHERE price > 1000;', "SELECT * FROM customers WHERE country = '台灣';"],
+    task: '找出類別（category）是「運動」的商品，列出 <code>name</code> 和 <code>price</code>。',
+    hint: "WHERE category = '運動'",
+    answer: "SELECT name, price FROM products WHERE category = '運動';",
+  },
+  {
+    title: 'AND / OR / IN / BETWEEN',
+    plain: '多個篩選條件一起用：AND＝而且，OR＝或者。',
+    body: `<p>多個條件用 <code>AND</code>（都要成立）、<code>OR</code>（其一成立）串起來。</p>
+<p><code>IN ('A','B')</code> 是「等於其中之一」的簡寫；<code>BETWEEN 100 AND 500</code> 是「介於兩者之間（含頭尾）」。</p>`,
+    examples: ["SELECT * FROM products WHERE category = '3C' AND price < 1000;", 'SELECT * FROM products WHERE price BETWEEN 300 AND 600;'],
+    task: '找出來自「日本」或「德國」的顧客，列出 <code>name</code> 和 <code>country</code>。',
+    hint: "WHERE country IN ('日本', '德國')",
+    answer: "SELECT name, country FROM customers WHERE country IN ('日本','德國');",
+  },
+  {
+    title: 'LIKE：模糊搜尋',
+    plain: 'LIKE 就是「包含…文字」的篩選。',
+    body: `<p><code>LIKE</code> 用來比對文字片段：<code>%</code> 代表任意長度的字，<code>_</code> 代表剛好一個字。</p>
+<p><code>'%耳機%'</code> = 名稱裡有「耳機」；<code>'無線%'</code> = 以「無線」開頭。</p>`,
+    examples: ["SELECT * FROM products WHERE name LIKE '%耳機%';"],
+    task: '找出名稱以「無線」開頭的商品，列出 <code>name</code>。',
+    hint: "WHERE name LIKE '無線%'",
+    answer: "SELECT name FROM products WHERE name LIKE '無線%';",
+  },
+  {
+    title: 'ORDER BY 與 LIMIT：排序、取前幾名',
+    plain: 'ORDER BY＝排序，LIMIT＝只看前幾列。',
+    body: `<p><code>ORDER BY 欄位</code> 預設由小到大（<code>ASC</code>），加 <code>DESC</code> 變由大到小。</p>
+<p><code>LIMIT 3</code> 只取前 3 列，常和排序一起用來做「前幾名」。</p>`,
+    examples: ['SELECT name, price FROM products ORDER BY price;', 'SELECT name, joined FROM customers ORDER BY joined DESC LIMIT 2;'],
+    task: '列出最貴的 3 個商品的 <code>name</code> 和 <code>price</code>，由貴到便宜。',
+    hint: 'ORDER BY price DESC LIMIT 3',
+    answer: 'SELECT name, price FROM products ORDER BY price DESC LIMIT 3;',
+    ordered: true,
+  },
+  {
+    title: '聚合函數：COUNT / SUM / AVG / MAX / MIN',
+    plain: '聚合函數＝Excel 的 COUNT、SUM、AVERAGE、MAX。',
+    body: `<p>聚合函數會把很多列「壓」成一個數字：</p>
+<p><code>COUNT(*)</code> 筆數、<code>SUM()</code> 加總、<code>AVG()</code> 平均、<code>MAX()</code> / <code>MIN()</code> 最大最小。</p>
+<p>可以用 <code>AS</code> 幫結果取名字，例如 <code>COUNT(*) AS 筆數</code>。</p>`,
+    examples: ['SELECT COUNT(*) AS 商品數 FROM products;', 'SELECT MAX(price), MIN(price) FROM products;'],
+    task: '算出所有商品的「庫存總量」（stock 加總）。',
+    hint: 'SELECT SUM(stock) FROM products;',
+    answer: 'SELECT SUM(stock) FROM products;',
+  },
+  {
+    title: 'GROUP BY：分組統計',
+    plain: 'GROUP BY 就是樞紐分析表：依某欄分組，再算總數。',
+    body: `<p><code>GROUP BY</code> 先把資料依某欄分組，再對每一組算聚合函數。</p>
+<p>SELECT 裡通常會放「分組的欄位」加上「聚合結果」。</p>`,
+    examples: ['SELECT category, COUNT(*) AS 商品數 FROM products GROUP BY category;', 'SELECT category, AVG(price) AS 均價 FROM products GROUP BY category;'],
+    task: '統計每個國家（country）各有幾位顧客，列出國家與人數。',
+    hint: 'SELECT country, COUNT(*) FROM customers GROUP BY ...',
+    answer: 'SELECT country, COUNT(*) FROM customers GROUP BY country;',
+  },
+  {
+    title: 'HAVING：篩選「分組後」的結果',
+    plain: 'HAVING＝對樞紐分析表「算出來的結果」再篩一次。',
+    body: `<p><code>WHERE</code> 在分組<b>之前</b>篩選列；<code>HAVING</code> 在分組<b>之後</b>篩選組。</p>
+<p>所以「篩聚合結果」（例如筆數 &gt; 2）要用 HAVING。</p>`,
+    examples: ['SELECT category, COUNT(*) FROM products GROUP BY category HAVING COUNT(*) >= 4;'],
+    task: '在 orders 中，找出下單「超過 2 筆」的 <code>customer_id</code>，並列出各自的訂單筆數。',
+    hint: 'GROUP BY customer_id HAVING COUNT(*) > 2',
+    answer: 'SELECT customer_id, COUNT(*) FROM orders GROUP BY customer_id HAVING COUNT(*) > 2;',
+  },
+  {
+    title: 'JOIN：把兩張表接起來',
+    plain: 'JOIN 就是 VLOOKUP：用編號去另一張表把資料帶過來。',
+    body: `<p>訂單表只記 <code>customer_id</code>，想看顧客名字就要 JOIN 到 customers。</p>
+<p>寫法：<code>FROM orders o JOIN customers c ON o.customer_id = c.id</code>。<code>o</code>、<code>c</code> 是表的簡稱，欄位用 <code>c.name</code> 指定來源。</p>`,
+    examples: ['SELECT o.id, o.order_date, p.name\nFROM orders o\nJOIN products p ON o.product_id = p.id;'],
+    task: '列出每筆訂單的 <code>id</code>（訂單編號）和下單顧客的 <code>name</code>。',
+    hint: 'SELECT o.id, c.name FROM orders o JOIN customers c ON o.customer_id = c.id;',
+    answer: 'SELECT o.id, c.name FROM orders o JOIN customers c ON o.customer_id = c.id;',
+  },
+  {
+    title: 'JOIN + GROUP BY：算每人花多少',
+    plain: '先 VLOOKUP 把價格帶進來，再做樞紐加總。',
+    body: `<p>JOIN 之後一樣可以分組統計。訂單金額 = <code>qty * price</code>，價格在 products 表。</p>`,
+    examples: ['SELECT p.category, SUM(o.qty) AS 賣出件數\nFROM orders o\nJOIN products p ON o.product_id = p.id\nGROUP BY p.category;'],
+    task: '算出每位顧客的消費總額：列出顧客 <code>name</code> 與總額（qty × price 的加總），由高到低排序。',
+    hint: '要 JOIN 三張表：orders → customers、orders → products，再 GROUP BY c.name，ORDER BY 總額 DESC。',
+    answer: 'SELECT c.name, SUM(o.qty * p.price) AS total\nFROM orders o\nJOIN customers c ON o.customer_id = c.id\nJOIN products p ON o.product_id = p.id\nGROUP BY c.name\nORDER BY total DESC;',
+    ordered: true,
+  },
+  {
+    title: 'LEFT JOIN：找出「沒有」的資料',
+    plain: 'LEFT JOIN＝VLOOKUP 找不到時顯示 #N/A，篩出 #N/A 的列就是「沒有」的資料。',
+    body: `<p><code>JOIN</code> 只留兩邊都對得上的列；<code>LEFT JOIN</code> 會保留左表全部的列，對不上的右表欄位會是 <code>NULL</code>。</p>
+<p>判斷空值要用 <code>IS NULL</code>，不能用 <code>= NULL</code>。</p>`,
+    examples: ['SELECT c.name, o.id AS 訂單\nFROM customers c\nLEFT JOIN orders o ON o.customer_id = c.id;'],
+    task: '找出「從來沒下過單」的顧客，列出 <code>name</code>。',
+    hint: 'LEFT JOIN orders 之後，WHERE o.id IS NULL',
+    answer: 'SELECT c.name FROM customers c LEFT JOIN orders o ON o.customer_id = c.id WHERE o.id IS NULL;',
+  },
+  {
+    title: '子查詢：查詢裡面再查詢',
+    plain: '先算出一個數字（例如平均），再拿這個數字去篩選。',
+    body: `<p>括號裡可以放另一句 SELECT，先算出一個值或一串值，再拿給外層用。</p>
+<p>例如「價格高於平均」：先 <code>(SELECT AVG(price) FROM products)</code>，再拿來比較。</p>`,
+    examples: ["SELECT name FROM customers\nWHERE id IN (SELECT customer_id FROM orders WHERE product_id = 4);"],
+    task: '找出價格「高於所有商品平均價格」的商品，列出 <code>name</code> 和 <code>price</code>。',
+    hint: 'WHERE price > (SELECT AVG(price) FROM products)',
+    answer: 'SELECT name, price FROM products WHERE price > (SELECT AVG(price) FROM products);',
+  },
+  {
+    title: 'CASE WHEN：依條件產生新欄位',
+    plain: 'CASE WHEN 就是 Excel 的 IF()。',
+    body: `<p><code>CASE WHEN 條件 THEN 值 ... ELSE 值 END</code> 就像 Excel 的 IF，可以依條件給不同結果。</p>`,
+    examples: ["SELECT name, stock,\n  CASE WHEN stock = 0 THEN '缺貨' ELSE '有貨' END AS 狀態\nFROM products;"],
+    task: "列出每個商品的 <code>name</code> 和價格級距：price ≥ 1000 為「高」，500～999 為「中」，其餘為「低」。",
+    hint: "CASE WHEN price >= 1000 THEN '高' WHEN price >= 500 THEN '中' ELSE '低' END",
+    answer: "SELECT name, CASE WHEN price >= 1000 THEN '高' WHEN price >= 500 THEN '中' ELSE '低' END AS level FROM products;",
+  },
+  {
+    title: 'INSERT / UPDATE / DELETE：修改資料',
+    plain: '這幾句不是查資料，而是直接改資料，等於在 Excel 裡新增、修改、刪除列。',
+    body: `<p><code>INSERT INTO 表 VALUES (...)</code> 新增；<code>UPDATE 表 SET 欄 = 值 WHERE ...</code> 修改；<code>DELETE FROM 表 WHERE ...</code> 刪除。</p>
+<p>⚠ UPDATE / DELETE 忘了寫 WHERE，會改到「整張表」。實務上動手前先用 SELECT 確認範圍。</p>
+<p>這裡的資料只在你的瀏覽器裡，改壞了按「重置資料」即可。</p>`,
+    examples: ["INSERT INTO customers VALUES (10,'張雅婷','新竹','台灣','2024-11-01');\nSELECT * FROM customers;"],
+    task: '把所有庫存為 0 的商品，庫存（stock）補成 50。',
+    hint: 'UPDATE products SET stock = 50 WHERE stock = 0;',
+    answer: 'UPDATE products SET stock = 50 WHERE stock = 0;',
+    verify: 'SELECT id, stock FROM products ORDER BY id;',
+  },
+];
+
+const KEYWORDS = ['SELECT', '*', 'FROM', 'WHERE', ',', "''", '=', '>', '<', 'AND', 'OR', 'IN ()', 'LIKE', '%',
+  'ORDER BY', 'DESC', 'LIMIT', 'COUNT(*)', 'SUM()', 'AVG()', 'GROUP BY', 'HAVING', 'AS', 'JOIN', 'LEFT JOIN', 'ON',
+  'IS NULL', 'CASE WHEN', 'THEN', 'ELSE', 'END', ';', 'customers', 'products', 'orders'];
+
+// ---------- 狀態 ----------
+let SQL, db;
+let current = Number(localStorage.getItem('sqlTutor.current') || 0);
+let done = new Set(JSON.parse(localStorage.getItem('sqlTutor.done') || '[]'));
+const drafts = JSON.parse(localStorage.getItem('sqlTutor.drafts') || '{}');
+
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+function freshDb() { const d = new SQL.Database(); d.run(SEED_SQL); return d; }
+function lastResult(d, sql) {
+  const res = d.exec(sql);
+  return res.length ? res[res.length - 1] : { columns: [], values: [] };
+}
+function save() {
+  localStorage.setItem('sqlTutor.current', current);
+  localStorage.setItem('sqlTutor.done', JSON.stringify([...done]));
+  localStorage.setItem('sqlTutor.drafts', JSON.stringify(drafts));
+}
+
+// ---------- 畫面 ----------
+function render() {
+  const L = LESSONS[current];
+  $('#title').textContent = `${current + 1}. ${L.title}`;
+  $('#progressBar').style.width = `${(done.size / LESSONS.length) * 100}%`;
+  $('#app').innerHTML = `
+    <section class="card">
+      <span class="tag">第 ${current + 1} / ${LESSONS.length} 課</span>
+      <h2>${L.title}</h2>
+      <p class="plain">💬 白話：${L.plain}</p>
+      ${L.body}
+      ${L.examples.map((e, i) => `<pre class="example" data-ex="${i}">${esc(e)}</pre>`).join('')}
+    </section>
+    <section class="card challenge">
+      <h2>🎯 挑戰 ${done.has(current) ? '<span style="color:var(--ok)">✔ 已完成</span>' : ''}</h2>
+      <p>${L.task}</p>
+    </section>
+    <section class="card">
+      <textarea id="editor" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off"
+        placeholder="在這裡寫 SQL…">${esc(drafts[current] ?? '')}</textarea>
+      <div class="chips" id="chips">${KEYWORDS.map((k) => `<button data-k="${esc(k)}">${esc(k)}</button>`).join('')}</div>
+      <div class="actions">
+        <button class="btn-run" id="btnRun">▶ 執行</button>
+        <button class="btn-check" id="btnCheck">✓ 檢查答案</button>
+        <button class="btn-ghost" id="btnHint">💡 提示</button>
+        <button class="btn-ghost" id="btnAnswer">看答案</button>
+        <button class="btn-ghost" id="btnClear">清空</button>
+        <button class="btn-ghost" id="btnResetDb">重置資料</button>
+      </div>
+      <div class="feedback" id="feedback"></div>
+      <div id="result"></div>
+    </section>
+    <div class="nav">
+      <button id="btnPrev" ${current === 0 ? 'disabled' : ''}>← 上一課</button>
+      <button id="btnNext" ${current === LESSONS.length - 1 ? 'disabled' : ''}>下一課 →</button>
+    </div>`;
+  bind();
+  renderMenu();
+  window.scrollTo(0, 0);
+}
+
+function renderMenu() {
+  $('#lessonList').innerHTML = LESSONS.map((L, i) => `
+    <div class="lesson-item ${i === current ? 'active' : ''} ${done.has(i) ? 'done' : ''}" data-i="${i}">
+      <span class="dot">${done.has(i) ? '✓' : i + 1}</span><span>${L.title}</span>
+    </div>`).join('');
+}
+
+function showFeedback(type, msg) {
+  const f = $('#feedback');
+  f.className = `feedback ${type}`;
+  f.textContent = msg;
+}
+
+function showTable(r) {
+  const box = $('#result');
+  if (!r.columns.length) { box.innerHTML = '<div class="meta">已執行（這句沒有回傳資料）。</div>'; return; }
+  box.innerHTML = `<div class="result-wrap"><table>
+    <thead><tr>${r.columns.map((c) => `<th>${esc(c)}</th>`).join('')}</tr></thead>
+    <tbody>${r.values.map((row) => `<tr>${row.map((v) => v === null
+      ? '<td class="null">NULL</td>' : `<td>${esc(v)}</td>`).join('')}</tr>`).join('')}</tbody>
+  </table></div><div class="meta">${r.values.length} 列</div>`;
+}
+
+// ---------- 動作 ----------
+function editorSql() { return $('#editor').value.trim(); }
+
+function run() {
+  const sql = editorSql();
+  if (!sql) { showFeedback('info', '先寫一句 SQL 再執行。'); return; }
+  try {
+    const r = lastResult(db, sql);
+    $('#feedback').className = 'feedback';
+    showTable(r);
+  } catch (e) {
+    $('#result').innerHTML = '';
+    showFeedback('bad', `語法錯誤：${e.message}`);
+  }
+}
+
+const norm = (v) => (v === null ? 'NULL' : typeof v === 'number' ? String(Math.round(v * 100) / 100) : String(v));
+
+function check() {
+  const L = LESSONS[current];
+  const sql = editorSql();
+  if (!sql) { showFeedback('info', '先寫一句 SQL 再檢查。'); return; }
+  let mine, expected;
+  try {
+    if (L.verify) {
+      const a = freshDb(); a.exec(sql); mine = lastResult(a, L.verify); a.close();
+      const b = freshDb(); b.exec(L.answer); expected = lastResult(b, L.verify); b.close();
+    } else {
+      const a = freshDb(); mine = lastResult(a, sql); a.close();
+      const b = freshDb(); expected = lastResult(b, L.answer); b.close();
+    }
+  } catch (e) {
+    showFeedback('bad', `語法錯誤：${e.message}`);
+    return;
+  }
+  if (!L.verify) showTable(mine);
+
+  if (mine.columns.length !== expected.columns.length) {
+    return showFeedback('bad', `欄位數不對：你的結果有 ${mine.columns.length} 欄，題目要 ${expected.columns.length} 欄。`);
+  }
+  if (mine.values.length !== expected.values.length) {
+    return showFeedback('bad', `列數不對：你的結果有 ${mine.values.length} 列，正確答案是 ${expected.values.length} 列。檢查一下篩選條件。`);
+  }
+  const toRows = (r) => r.values.map((row) => row.map(norm).join('\u0001'));
+  let a = toRows(mine), b = toRows(expected);
+  const sameSet = [...a].sort().join('\n') === [...b].sort().join('\n');
+  if (!sameSet) {
+    return showFeedback('bad', L.verify ? '修改後的資料和預期不同，按「重置資料」後再試一次。' : '筆數對了，但內容不一樣。檢查欄位順序或條件。');
+  }
+  if (L.ordered && a.join('\n') !== b.join('\n')) {
+    return showFeedback('bad', '內容對了，但順序不對。檢查 ORDER BY。');
+  }
+  done.add(current); save();
+  showFeedback('ok', current === LESSONS.length - 1 ? '🎉 正確！全部課程完成了！' : '🎉 正確！可以前往下一課。');
+  $('#progressBar').style.width = `${(done.size / LESSONS.length) * 100}%`;
+  renderMenu();
+}
+
+function insertAtCursor(text) {
+  const ta = $('#editor');
+  const s = ta.selectionStart, e = ta.selectionEnd, v = ta.value;
+  const before = v.slice(0, s);
+  const needSpace = before && !/\s$/.test(before) && !/^[,;)]/.test(text);
+  let ins = (needSpace ? ' ' : '') + text;
+  let caret = s + ins.length;
+  if (/\(\)$/.test(text) || text === "''") caret -= 1;   // 游標放進括號 / 引號中間
+  else if (!/[;]$/.test(text)) { ins += ' '; caret += 1; }
+  ta.value = before + ins + v.slice(e);
+  ta.focus();
+  ta.setSelectionRange(caret, caret);
+  drafts[current] = ta.value; save();
+}
+
+function bind() {
+  const ta = $('#editor');
+  ta.addEventListener('input', () => { drafts[current] = ta.value; save(); });
+  ta.addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); run(); } });
+  document.querySelectorAll('pre.example').forEach((el) => el.addEventListener('click', () => {
+    ta.value = LESSONS[current].examples[el.dataset.ex];
+    drafts[current] = ta.value; save();
+    run();
+    $('#btnRun').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }));
+  // 用 pointerdown + preventDefault，點按鈕時編輯器不會失焦、手機鍵盤不會收起
+  $('#chips').addEventListener('pointerdown', (e) => {
+    const b = e.target.closest('button'); if (!b) return;
+    e.preventDefault(); insertAtCursor(b.dataset.k);
+  });
+  $('#btnRun').onclick = run;
+  $('#btnCheck').onclick = check;
+  $('#btnHint').onclick = () => showFeedback('info', `提示：${LESSONS[current].hint}`);
+  $('#btnAnswer').onclick = () => {
+    ta.value = LESSONS[current].answer; drafts[current] = ta.value; save();
+    showFeedback('info', '已放入參考答案，按「執行」看結果，或試著自己改寫看看。');
+  };
+  $('#btnClear').onclick = () => { ta.value = ''; drafts[current] = ''; save(); $('#result').innerHTML = ''; $('#feedback').className = 'feedback'; };
+  $('#btnResetDb').onclick = () => { db.close(); db = freshDb(); showFeedback('info', '資料已重置回初始狀態。'); $('#result').innerHTML = ''; };
+  $('#btnPrev').onclick = () => go(current - 1);
+  $('#btnNext').onclick = () => go(current + 1);
+}
+
+function go(i) { current = Math.max(0, Math.min(LESSONS.length - 1, i)); save(); closeDrawers(); render(); }
+
+function openDrawer(id) { $('#mask').classList.add('open'); $(id).classList.add('open'); }
+function closeDrawers() { $('#mask').classList.remove('open'); document.querySelectorAll('.drawer').forEach((d) => d.classList.remove('open')); }
+
+$('#btnMenu').onclick = () => openDrawer('#drawerMenu');
+$('#btnSchema').onclick = () => openDrawer('#drawerSchema');
+$('#mask').onclick = closeDrawers;
+$('#lessonList').onclick = (e) => { const it = e.target.closest('.lesson-item'); if (it) go(Number(it.dataset.i)); };
+$('#btnResetProgress').onclick = () => {
+  if (!confirm('確定要清除所有進度與草稿？')) return;
+  done = new Set(); Object.keys(drafts).forEach((k) => delete drafts[k]); current = 0; save(); closeDrawers(); render();
+};
+$('#schemaBox').innerHTML = SCHEMA.map(([t, zh, cols]) =>
+  `<div class="schema-table"><b>${t}</b>（${zh}）${cols.map((c) => `<div>${esc(c)}</div>`).join('')}</div>`).join('');
+
+// ---------- 啟動 ----------
+initSqlJs({ locateFile: (f) => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/${f}` })
+  .then((S) => { SQL = S; db = freshDb(); if (current >= LESSONS.length) current = 0; render(); })
+  .catch((e) => { $('#app').innerHTML = `<div class="card">SQL 引擎載入失敗，請確認網路連線後重新整理。<div class="meta">${esc(e.message)}</div></div>`; });
+</script>
+</body>
+</html>
